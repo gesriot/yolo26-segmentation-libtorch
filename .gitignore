@@ -1,0 +1,8 @@
+/target/
+/.venv/
+/.cache/
+/outputs/
+models/*.torchscript
+models/*_torchscript.pt
+models/*.pt
+.DS_Store

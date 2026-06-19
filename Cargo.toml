@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["crates/yolo-seg", "crates/yolo-seg-cli"]
+
+[workspace.package]
+version = "0.9.2"
+edition = "2024"
+license = "MIT"
+rust-version = "1.85"
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tch = "0.24.0"
+thiserror = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
