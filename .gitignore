@@ -2,6 +2,7 @@
 /.venv/
 /.cache/
 /outputs/
+/dist/
 models/*.torchscript
 models/*_torchscript.pt
 models/*.pt

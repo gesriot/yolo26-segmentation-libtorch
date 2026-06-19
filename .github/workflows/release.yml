@@ -1,0 +1,102 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag to build and publish
+        required: true
+        default: v0.9.2
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+
+jobs:
+  release-macos:
+    name: Build and publish macOS arm64 release
+    runs-on: macos-14
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          [[ "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          test "$(git rev-list -n 1 "${RELEASE_TAG}")" = "$(git rev-parse HEAD)"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Select pinned Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install 1.85.0 --profile minimal --component clippy
+          rustup default 1.85.0
+          rustc --version
+
+      - name: Install LibTorch runtime
+        shell: bash
+        run: scripts/setup-libtorch.sh
+
+      - name: Export yolo26s TorchScript model
+        shell: bash
+        run: |
+          # Ultralytics downloads the checkpoint by name into the models directory.
+          ( cd models && ../.venv/bin/python -c "from ultralytics import YOLO; YOLO('yolo26s-seg.pt')" )
+          .venv/bin/python scripts/export_torchscript.py models/yolo26s-seg.pt --device cpu
+          test -s models/yolo26s-seg.torchscript
+
+      - name: Build release
+        shell: bash
+        run: scripts/cargo-libtorch.sh build --release --locked --workspace
+
+      - name: Run tests and lint
+        shell: bash
+        run: |
+          scripts/cargo-libtorch.sh test --release --locked --workspace
+          scripts/cargo-libtorch.sh clippy --release --locked --workspace -- -D warnings
+
+      - name: Package macOS archive
+        shell: bash
+        run: scripts/package_release_macos.sh "${RELEASE_TAG}"
+
+      - name: Create or update release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_NOTES: |
+            Self-contained Rust + LibTorch YOLO26 segmentation binary for macOS arm64.
+            Bundles the LibTorch runtime (CPU and Metal/MPS), the YOLO26s TorchScript
+            model and all licenses (MIT project, BSD LibTorch, AGPL-3.0 Ultralytics model).
+        run: |
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" dist/*.zip --clobber
+            gh release edit "${RELEASE_TAG}" --title "${RELEASE_TAG}" --notes "${RELEASE_NOTES}"
+          else
+            gh release create "${RELEASE_TAG}" dist/*.zip \
+              --verify-tag \
+              --title "${RELEASE_TAG}" \
+              --notes "${RELEASE_NOTES}"
+          fi
