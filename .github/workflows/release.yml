@@ -48,12 +48,11 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install latest stable Rust toolchain
+      - name: Select pinned Rust toolchain
         shell: bash
         run: |
-          rustup update stable
-          rustup default stable
-          rustup component add clippy
+          rustup toolchain install 1.96.0 --profile minimal --component clippy
+          rustup default 1.96.0
           rustc --version
 
       - name: Install LibTorch runtime
