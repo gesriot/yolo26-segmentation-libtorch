@@ -67,12 +67,12 @@ source is MIT licensed.
 
 ## Verified performance
 
-Apple M4, `yolo26n-seg`, 640×640, three warmups and ten measured iterations:
+Apple M4, `yolo26n-seg`, 640×640, three warmups and twenty measured iterations:
 
 | Backend | Preprocess | Inference | Postprocess | Total |
 | --- | ---: | ---: | ---: | ---: |
-| MPS FP16 | 7.18 ms | 50.87 ms | 8.24 ms | 66.29 ms |
-| CPU FP32 | 14.70 ms | 412.06 ms | 8.67 ms | 435.43 ms |
+| MPS FP16 | 2.91 ms | 17.48 ms | 1.94 ms | 22.33 ms |
+| CPU FP32 | 2.25 ms | 69.50 ms | 1.42 ms | 73.16 ms |
 
-That run was about 8.1× faster for model inference and 6.6× faster end to end
+That run was about 4.0× faster for model inference and 3.3× faster end to end
 on MPS. All five supplied `n/s/m/l/x` models were smoke-tested on MPS FP16.
